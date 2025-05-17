@@ -19,7 +19,7 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['student', 'teacher'],
+    enum: ['student', 'teacher','admin'],
     required: true
   },
   grade: {
@@ -50,10 +50,12 @@ UserSchema.methods.matchPassword = async function(enteredPassword) {
 };
 
 UserSchema.methods.getSignedJwtToken = function() {
+  console.log("cc",process.env.JWT_EXPIRY);
+  
   return jwt.sign(
     { id: this._id, role: this.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
+    { expiresIn: process.env.JWT_EXPIRY }
   );
 };
 

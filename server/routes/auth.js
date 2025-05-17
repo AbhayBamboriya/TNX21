@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../Models/User');
+const { uploadStudentList } = require('./uploadStudentList');
 const router = express.Router();
 
 
@@ -89,5 +90,19 @@ router.post('/login', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+// Apply authentication middleware for all routes
+router.use(authMiddleware);
+
+// Route to upload and process student list PDF
+router.post('/upload', uploadStudentList);
+
+// Route to get students list for a specific class and academic year
+router.get('/list', getStudentsList);
+
+// Route to get students list for taking attendance
+router.get('/students', getStudentsForAttendance);
+
+// Route to mark attendance
+router.post('/mark', markAttendance);
 
 module.exports = router;
