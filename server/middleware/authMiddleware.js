@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../Models/User');
+// const User = require('../models/User');
 
 /**
  * Authentication middleware to verify JWT token and attach user to request

@@ -1,62 +1,59 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 
 const UserSchema = new mongoose.Schema({
-  name: {
+  role: {
     type: String,
+    enum: ['student', 'teacher', 'admin'],
     required: true
-    // /
+  },
+  enrollmentNo: {
+    type: String,
+    unique: true,
+    sparse: true,
+    validate: {
+      validator: function (value) {
+        // Required only if role is student
+        if (this.role === 'student') {
+          return value != null && value.trim() !== '';
+        }
+        return true;
+      },
+      message: 'Enrollment number is required for students'
+    }
   },
   email: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    sparse: true,
+    validate: {
+      validator: function (value) {
+        // Required only if role is NOT student
+        if (this.role !== 'student') {
+          return value != null && value.trim() !== '';
+        }
+        return true;
+      },
+      message: 'Email is required for non-students'
+    }
   },
   password: {
     type: String,
-    required: true
+    required: function () {
+      return this.role !== 'student'; // only required for non-students
+    }
   },
-  role: {
-    type: String,
-    enum: ['student', 'teacher','admin'],
-    required: true
+  name: {
+    type: String
   },
   grade: {
     type: String,
-    required: function() { return this.role === 'student'; }
+    required: function () {
+      return this.role === 'student';
+    }
   },
   subjects: {
-    type: [String],
-    required: function() { return this.role === 'teacher'; }
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: [String]
   }
 });
-
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-UserSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-UserSchema.methods.getSignedJwtToken = function() {
-  console.log("cc",process.env.JWT_EXPIRY);
-  
-  return jwt.sign(
-    { id: this._id, role: this.role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRY }
-  );
-};
 
 module.exports = mongoose.model('User', UserSchema);

@@ -1,62 +1,40 @@
 const mongoose = require('mongoose');
 
-// Schema for individual student's attendance
-const StudentAttendanceSchema = new mongoose.Schema({
-  studentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
-    required: true
-  },
-  isPresent: {
-    type: Boolean,
-    default: false
-  },
-  remark: {
+const attendanceSchema = new mongoose.Schema({
+  studentEnrollment: {
     type: String,
-    default: ''
-  }
-});
-
-// Main attendance schema
-const AttendanceSchema = new mongoose.Schema({
-  date: {
-    type: Date,
-    required: [true, 'Date is required for attendance']
+    required: true,
   },
   subject: {
     type: String,
-    required: [true, 'Subject is required']
+    required: true,
   },
-  classSection: {
+  semester: {
+    type: Number,
+    required: true,
+  },
+  section: {
     type: String,
-    required: [true, 'Class section is required']
+    required: true,
   },
-  academicYear: {
-    type: String,
-    required: [true, 'Academic year is required']
+  attendanceRecords: [
+    {
+      date: { type: Date, required: true },
+      present: { type: Boolean, required: true },
+    }
+  ],
+  totalClasses: {
+    type: Number,
+    default: 0,
   },
-  studentAttendance: [StudentAttendanceSchema],
-  markedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'User who marked attendance is required']
+  totalClassesAttended: {
+    type: Number,
+    default: 0,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
 }, {
-  timestamps: true
+  timestamps: true,
 });
 
-// Create compound index for faster lookups
-AttendanceSchema.index({ date: 1, subject: 1, classSection: 1, academicYear: 1 });
-
-// Create the Attendance model
-const Attendance = mongoose.model('Attendance', AttendanceSchema);
+const Attendance = mongoose.model('Attendance', attendanceSchema);
 
 module.exports = Attendance;
