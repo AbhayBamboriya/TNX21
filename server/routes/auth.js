@@ -2,12 +2,23 @@ const express = require('express');
 const User = require('../Models/User');
 const { uploadStudentList } = require('./uploadStudentList');
 const authMiddleware = require('../middleware/authMiddleware');
+const multer = require('multer');
+const parseAndSaveStudents = require('../controller/uploadStudentData');
 const router = express.Router();
 
+const bcrypt = require('bcryptjs');
 
 router.post('/signup', async (req, res) => {
   try {
     const { name, email, password, role, grade, subjects, enrollmentNo } = req.body;
+    console.log('checking');
+    
+    // Check if password is provided
+    if (!password) {
+      return res.status(400).json({ msg: 'Password is required for all users' });
+    }
+
+    // const hashedPas/sword = await bcrypt.hash(password, 10); // Hashing the password
 
     if (role === 'student') {
       if (!enrollmentNo || !grade) {
@@ -20,9 +31,11 @@ router.post('/signup', async (req, res) => {
       }
 
       const student = new User({
+        name,
         enrollmentNo,
         role: 'student',
-        grade
+        grade,
+        password: password,
       });
 
       await student.save();
@@ -32,14 +45,15 @@ router.post('/signup', async (req, res) => {
         user: {
           id: student._id,
           enrollmentNo: student.enrollmentNo,
+          name: student.name,
           role: student.role,
           grade: student.grade
         }
       });
 
     } else {
-      // Signup logic for teacher or other roles
-      if (!name || !email || !password || !role) {
+      // Signup logic for teacher/admin
+      if (!name || !email || !role) {
         return res.status(400).json({ msg: 'Missing required fields for teacher/admin' });
       }
 
@@ -51,11 +65,12 @@ router.post('/signup', async (req, res) => {
       const newUser = new User({
         name,
         email,
-        password,
+        password: password,
         role,
         subjects: role === 'teacher' ? subjects : undefined
       });
-
+      console.log(newUser);
+      
       await newUser.save();
 
       return res.status(201).json({
@@ -77,15 +92,16 @@ router.post('/signup', async (req, res) => {
 });
 
 
+
 router.post('/login', async (req, res) => {
   try {
-    const { email, enrollment, password } = req.body;
+    const { email, enrollmentNo, password } = req.body;
 
-    let user;
+    // let user;
 
-    if (enrollment) {
+    if (enrollmentNo) {
       // Login by enrollment for students
-      user = await User.findOne({ enrollment });
+      user = await User.findOne({ enrollmentNo });
       if (!user) {
         return res.status(400).json({ msg: 'Invalid enrollment number or password' });
       }
@@ -96,17 +112,22 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ msg: 'Invalid email or password' });
       }
     } else {
-      return res.status(400).json({ msg: 'Please provide enrollment or email' });
+      return res.status(400).json({ msg: 'Please provide correct enrollment or email' });
     }
-
+    console.log(user);
+    
     // Check password
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
+    // const isMatch = await bcrypt.compare(password, user.password);
+
+    // const isMatch = await user.matchPassword(password);
+    // console.log(password,isMatch);
+    
+    if (user.password!=password) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
     // Generate JWT token
-    const token = user.getSignedJwtToken();
+    const token = user.generateJWTToken();
 
     res.json({
       success: true,
@@ -128,16 +149,33 @@ router.post('/login', async (req, res) => {
 // Apply authentication middleware for all routes
 router.use(authMiddleware);
 
-// Route to upload and process student list PDF
-// router.post('/upload', uploadStudentList);
 
-// // Route to get students list for a specific class and academic year
-// router.get('/list', getStudentsList);
+const upload = multer({ storage: multer.memoryStorage() });
+router.post('/upload-students', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ msg: 'No file uploaded' });
+    }
 
-// // Route to get students list for taking attendance
-// router.get('/students', getStudentsForAttendance);
+    const savedStudents = await parseAndSaveStudents(
+      req.file.buffer,
+      req.file.originalname,
+      {
+        year: req.body.year,
+        semester: req.body.semester,
+        section: req.body.section
+      }
+    );
 
-// // Route to mark attendance
-// router.post('/mark', markAttendance);
+    res.json({
+      msg: 'Students uploaded successfully',
+      count: savedStudents.length,
+      students: savedStudents,
+    });
+  } catch (err) {
+    console.error('Error uploading students:', err.message);
+    res.status(500).json({ msg: err.message || 'Server error' });
+  }
+});
 
 module.exports = router;
